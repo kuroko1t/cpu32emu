@@ -29,18 +29,19 @@ public:
     size = 0;
     registers.resize(REGISTERS_COUNT);
     fill(registers.begin(), registers.end(), 0);
-    //registers(REGISTERS_COUNT,0);
   }
 
   Emulator(size_t size, uint32_t eip_arg, uint32_t esp_arg) {
     memory = new uint8_t[size];
     eip = eip_arg;
+    registers.resize(REGISTERS_COUNT);
+    fill(registers.begin(), registers.end(), 0);
     registers[ESP] = esp;
   }
 
-  ~Emulator() {
-    delete[] memory;
-  }
+  //~Emulator() {
+  //  delete[] memory;
+  //}
 };
 
 uint32_t get_code8(Emulator emu, int index) {
