@@ -2,11 +2,13 @@
 #include <stdint.h>
 #include <vector>
 #include <string.h>
+#include <array>
 
-const int REGISTERS_COUNT = 8;
-const int MEMORY_SIZE = 10240;
-const int ESP = 0;
-
+//const int REGISTERS_COUNT = 8;
+const int MEMORY_SIZE = 1024 * 1024;
+enum Register { EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI, REGISTERS_COUNT };
+//std::registers_name<int, 4> ar{1, 2, 3, 4};
+std::vector<std::string> registers_name{"EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI"};
 //#define REGISTERS_COUNT 8
 //#define MEMORY_SIZE 10240
 
@@ -51,7 +53,7 @@ uint32_t get_code8(Emulator emu, int index) {
 uint32_t get_code32(Emulator emu, int index) {
   uint32_t ret = 0;
   for (int i = 0; i < 4; i++) {
-    ret |= get_code8(emu, index +1) << (i*8);
+    ret |= get_code8(emu, index +i) << (i*8);
   }
   return ret;
 }
@@ -73,15 +75,15 @@ void short_jump(Emulator emu) {
 }
 
 void dump_registers(Emulator emu) {
-  //for (int i = 0; i < REGISTERS_COUNT; i++) {
-  //  printf("%s = 0x%08x\n",)
-  //}
-  printf("EIP = 0x%08x\n",emu.eip);
+  for (int i = 0; i < REGISTERS_COUNT; i++) {
+    printf("%s = 0x%08x\n",registers_name[i].c_str(), emu.registers[i]);
+  }
+  //printf("EIP = 0x%08x\n",emu.eip);
 }
 
 typedef void instruction_func_t(Emulator);
-
 instruction_func_t* instructions[256];
+
 void init_instructions(void) {
   memset(instructions, 0, sizeof(instructions));
   for (int i = 0; i < 8; i++) {
@@ -103,17 +105,19 @@ int main(int argc, char* argv[]) {
     printf("%s cannnot open file\n", argv[1]);
     return 1;
   }
-  fread(emu.memory,1, 0x200, binary);
+  fread(emu.memory,sizeof(uint8_t), 0x200, binary);
   fclose(binary);
-
+  printf("memory:%x\n",emu.memory[0]);
+  printf("memory:%x\n",emu.memory[1]);
+  printf("%x\n",0x200);
   init_instructions();
   while(emu.eip < MEMORY_SIZE) {
     uint8_t code = get_code8(emu, 0);
+    printf("code:%x",code);
     if (instructions[code] == nullptr) {
       printf("\n\nNot Implemented: %x\n",code);
       break;
     }
-
     instructions[code](emu);
     if (emu.eip == 0x00) {
       printf("\n\n end of program.\n\n");
