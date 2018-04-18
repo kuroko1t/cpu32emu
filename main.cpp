@@ -3,6 +3,7 @@
 #include <vector>
 #include <string.h>
 #include <array>
+#include <map>
 
 //const int REGISTERS_COUNT = 8;
 const int MEMORY_SIZE = 1024 * 1024;
@@ -46,11 +47,11 @@ public:
   //}
 };
 
-uint32_t get_code8(Emulator emu, int index) {
-  return emu.memory[emu.eip + index];
+uint32_t get_code8(Emulator *emu, int index) {
+  return (*emu).memory[(*emu).eip + index];
 }
 
-uint32_t get_code32(Emulator emu, int index) {
+uint32_t get_code32(Emulator *emu, int index) {
   uint32_t ret = 0;
   for (int i = 0; i < 4; i++) {
     ret |= get_code8(emu, index +i) << (i*8);
@@ -58,40 +59,34 @@ uint32_t get_code32(Emulator emu, int index) {
   return ret;
 }
 
-uint32_t get_sign_code8(Emulator emu, int index) {
-  return static_cast<int8_t>(emu.memory[emu.eip + index]);
+uint32_t get_sign_code8(Emulator *emu, int index) {
+  return static_cast<int8_t>(emu->memory[emu->eip + index]);
 }
 
-void mov_r32_imm32(Emulator emu) {
+void mov_r32_imm32(Emulator *emu) {
   uint8_t reg = get_code8(emu, 0) - 0xB8;
   uint32_t value = get_code32(emu, 1);
-  emu.registers[reg] = value;
-  printf("mov eip:%x\n",emu.eip);
-  emu.eip += 5;
-  printf("mov eip:%x\n",emu.eip);
+  emu->registers[reg] = value;
+  emu->eip += 5;
 }
 
-void short_jump(Emulator emu) {
+void short_jump(Emulator *emu) {
   int8_t diff = get_sign_code8(emu, 1);
-  emu.eip += (diff + 2);
+  emu->eip += (diff + 2);
 }
 
-void dump_registers(Emulator emu) {
+void dump_registers(Emulator *emu) {
   for (int i = 0; i < REGISTERS_COUNT; i++) {
-    printf("%s = 0x%08x\n",registers_name[i].c_str(), emu.registers[i]);
+    printf("%s = 0x%08x\n",registers_name[i].c_str(), emu->registers[i]);
   }
-  //printf("EIP = 0x%08x\n",emu.eip);
 }
 
-typedef void instruction_func_t(Emulator);
-instruction_func_t* instructions[256];
-
+std::map<uint32_t , void(*)(Emulator*)> instructions;
 void init_instructions(void) {
-  memset(instructions, 0, sizeof(instructions));
   for (int i = 0; i < 8; i++) {
-    instructions[0xB8 + i ] = &mov_r32_imm32;
+    instructions[0xB8 + i ] = mov_r32_imm32;
   }
-  instructions[0xEB] = &short_jump;
+  instructions[0xEB] = short_jump;
 }
 
 int main(int argc, char* argv[]) {
@@ -101,7 +96,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   Emulator emu(MEMORY_SIZE, 0x0000, 0x7c00);
-
   binary = fopen(argv[1], "rb");
   if (binary == nullptr) {
     printf("%s cannnot open file\n", argv[1]);
@@ -109,26 +103,19 @@ int main(int argc, char* argv[]) {
   }
   fread(emu.memory,1, 0x200, binary);
   fclose(binary);
-  printf("memory:%x\n",emu.memory[0]);
-  printf("memory:%x\n",emu.memory[1]);
-  printf("eip:%x\n",emu.eip);
-  printf("%x\n",0x200);
   init_instructions();
-  mov_r32_imm32(emu);
-  printf("after eip:%x\n",emu.eip);
+  mov_r32_imm32(&emu);
   while(emu.eip < MEMORY_SIZE) {
-    printf("while eip:%x\n",emu.eip);
-    uint8_t code = get_code8(emu, 0);
-    printf("code:%x",code);
+    uint8_t code = get_code8(&emu, 0);
     if (instructions[code] == nullptr) {
       printf("\n\nNot Implemented: %x\n",code);
       break;
     }
-    instructions[code](emu);
+    instructions[code](&emu);
     if (emu.eip == 0x00) {
       printf("\n\n end of program.\n\n");
       break;
     }
   }
-  dump_registers(emu);
+  dump_registers(&emu);
 }
