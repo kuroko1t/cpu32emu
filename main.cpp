@@ -38,7 +38,7 @@ public:
     eip = eip_arg;
     registers.resize(REGISTERS_COUNT);
     fill(registers.begin(), registers.end(), 0);
-    registers[ESP] = esp;
+    registers[ESP] = esp_arg;
   }
 
   //~Emulator() {
@@ -66,7 +66,9 @@ void mov_r32_imm32(Emulator emu) {
   uint8_t reg = get_code8(emu, 0) - 0xB8;
   uint32_t value = get_code32(emu, 1);
   emu.registers[reg] = value;
+  printf("mov eip:%x\n",emu.eip);
   emu.eip += 5;
+  printf("mov eip:%x\n",emu.eip);
 }
 
 void short_jump(Emulator emu) {
@@ -87,9 +89,9 @@ instruction_func_t* instructions[256];
 void init_instructions(void) {
   memset(instructions, 0, sizeof(instructions));
   for (int i = 0; i < 8; i++) {
-    instructions[0xB8 + i ] = mov_r32_imm32;
+    instructions[0xB8 + i ] = &mov_r32_imm32;
   }
-  instructions[0xEB] = short_jump;
+  instructions[0xEB] = &short_jump;
 }
 
 int main(int argc, char* argv[]) {
@@ -105,13 +107,17 @@ int main(int argc, char* argv[]) {
     printf("%s cannnot open file\n", argv[1]);
     return 1;
   }
-  fread(emu.memory,sizeof(uint8_t), 0x200, binary);
+  fread(emu.memory,1, 0x200, binary);
   fclose(binary);
   printf("memory:%x\n",emu.memory[0]);
   printf("memory:%x\n",emu.memory[1]);
+  printf("eip:%x\n",emu.eip);
   printf("%x\n",0x200);
   init_instructions();
+  mov_r32_imm32(emu);
+  printf("after eip:%x\n",emu.eip);
   while(emu.eip < MEMORY_SIZE) {
+    printf("while eip:%x\n",emu.eip);
     uint8_t code = get_code8(emu, 0);
     printf("code:%x",code);
     if (instructions[code] == nullptr) {
